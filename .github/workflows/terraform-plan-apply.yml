@@ -1,0 +1,42 @@
+name: "Terraform plan"
+ 
+on:
+#  workflow_dispatch: 
+#  push
+  workflow_call:
+
+env:
+ # verbosity setting for Terraform logs
+ TF_LOG: INFO
+ # Credentials for deployment to AWS
+ AWS_ACCESS_KEY_ID: secrets.AWS_ACCESS_KEY_ID
+ AWS_SECRET_ACCESS_KEY: secrets.AWS_SECRET_ACCESS_KEY
+ 
+jobs:
+ terraform:
+   name: "Terraform infrastructure change management"
+   runs-on: ubuntu-latest
+   defaults:
+     run:
+       shell: bash
+ 
+   steps:
+     - name: Checkout the repository to the runner
+       uses: actions/checkout@v2
+ 
+     - name: Setup Terraform with specified version on the runner
+       uses: hashicorp/setup-terraform@v2
+       with:
+         terraform_version: 1.14.7
+    
+     - name: Terraform init
+       id: init
+       run: terraform init 
+    
+     - name: Terraform validate
+       id: validate
+       run: terraform validate
+ 
+     - name: Terraform plan
+       id: plan
+       run: terraform plan -var-file ./apply-tfvars/dev.tfvars

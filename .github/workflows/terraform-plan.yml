@@ -9,8 +9,9 @@ env:
  # verbosity setting for Terraform logs
  TF_LOG: INFO
  # Credentials for deployment to AWS
- AWS_ACCESS_KEY_ID: ${{ secrets.AWS_KEY_ID }}
- AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY }}
+ AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_ID }}
+ AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS }}
+ AWS_SESSION_TOKEN: ${{ secrets.AWS_TOKEN }}
  
 jobs:
  terraform:

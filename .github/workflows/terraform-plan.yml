@@ -2,11 +2,9 @@ name: "Terraform plan"
 
 on:
   workflow_call:
-    inputs:
+    secrets:
       aws_sts_credentials_json:
-        description: "AWS STS credentials (JSON):"
         required: true
-        type: string
 
 env:
   TF_LOG: INFO
@@ -23,24 +21,17 @@ jobs:
       - name: Checkout the repository to the runner
         uses: actions/checkout@v2
 
-      - name: Extract and mask AWS credentials
+      - name: Mask extracted credentials
         run: |
-          RAW_JSON="$(jq -r '.inputs.aws_sts_credentials_json' "$GITHUB_EVENT_PATH")"
+          echo "::add-mask::${{ fromJSON(secrets.aws_sts_credentials_json).Credentials.AccessKeyId }}"
+          echo "::add-mask::${{ fromJSON(secrets.aws_sts_credentials_json).Credentials.SecretAccessKey }}"
+          echo "::add-mask::${{ fromJSON(secrets.aws_sts_credentials_json).Credentials.SessionToken }}"
 
-          AWS_ACCESS_KEY_ID="$(printf '%s' "$RAW_JSON" | jq -r '.Credentials.AccessKeyId')"
-          AWS_SECRET_ACCESS_KEY="$(printf '%s' "$RAW_JSON" | jq -r '.Credentials.SecretAccessKey')"
-          AWS_SESSION_TOKEN="$(printf '%s' "$RAW_JSON" | jq -r '.Credentials.SessionToken')"
-
-          echo "::add-mask::$RAW_JSON"
-          echo "::add-mask::$AWS_ACCESS_KEY_ID"
-          echo "::add-mask::$AWS_SECRET_ACCESS_KEY"
-          echo "::add-mask::$AWS_SESSION_TOKEN"
-
-          {
-            echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID"
-            echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY"
-            echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN"
-          } >> "$GITHUB_ENV"
+      - name: Set AWS credentials as environment variables
+        run: |
+          echo "AWS_ACCESS_KEY_ID=${{ fromJSON(secrets.aws_sts_credentials_json).Credentials.AccessKeyId }}" >> "$GITHUB_ENV"
+          echo "AWS_SECRET_ACCESS_KEY=${{ fromJSON(secrets.aws_sts_credentials_json).Credentials.SecretAccessKey }}" >> "$GITHUB_ENV"
+          echo "AWS_SESSION_TOKEN=${{ fromJSON(secrets.aws_sts_credentials_json).Credentials.SessionToken }}" >> "$GITHUB_ENV"
 
       - name: Setup Terraform with specified version on the runner
         uses: hashicorp/setup-terraform@v2

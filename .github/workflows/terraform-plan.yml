@@ -40,7 +40,7 @@ jobs:
       - name: Setup Terraform with specified version on the runner
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: terraform_version: ${{ inputs.terraform_version }}
+          terraform_version: ${{ inputs.terraform_version }}
 
       - name: Terraform init
         id: init

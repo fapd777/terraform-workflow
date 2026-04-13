@@ -6,6 +6,9 @@ on:
       terraform_version:
         required: true
         type: string
+      tfvars_file:
+        required: true
+        type: string
     secrets:
       aws_sts_credentials_json:
         required: true
@@ -52,4 +55,4 @@ jobs:
 
       - name: Terraform plan
         id: plan
-        run: terraform plan -var-file ./apply-tfvars/dev.tfvars
+        run: terraform plan -var-file "./apply-tfvars/${{ inputs.tfvars_file }}"

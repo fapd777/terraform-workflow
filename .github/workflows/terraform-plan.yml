@@ -47,7 +47,7 @@ jobs:
 
       - name: Terraform init
         id: init
-        run: terraform init -var-file "./init-tfvars/${{ inputs.tfvars_file }}"
+        run: terraform init -backend-config="./init-tfvars/${{ inputs.tfvars_file }}"
 
       - name: Terraform validate
         id: validate

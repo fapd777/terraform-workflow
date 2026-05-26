@@ -26,7 +26,7 @@ jobs:
 
     steps:
       - name: Checkout the repository to the runner
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Mask extracted credentials
         run: |
@@ -41,7 +41,7 @@ jobs:
           echo "AWS_SESSION_TOKEN=${{ fromJSON(secrets.aws_sts_credentials_json).Credentials.SessionToken }}" >> "$GITHUB_ENV"
 
       - name: Setup Terraform with specified version on the runner
-        uses: hashicorp/setup-terraform@v2
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: ${{ inputs.terraform_version }}
 

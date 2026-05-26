@@ -12,6 +12,8 @@ on:
     secrets:
       aws_sts_credentials_json:
         required: true
+      gh_pr_token:
+        required: true
 
 env:
   TF_LOG: INFO

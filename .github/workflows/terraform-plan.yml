@@ -12,7 +12,7 @@ on:
     secrets:
       aws_sts_credentials_json:
         required: true
-      github_token:
+      gh_pr_token:
         required: true
 
 env:
@@ -65,7 +65,7 @@ jobs:
         env:
           PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
         with:
-          github-token: ${{ secrets.github_token }}
+          github-token: ${{ secrets.GH_PR_TOKEN }}
           script: |
             #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
             #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`

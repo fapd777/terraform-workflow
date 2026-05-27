@@ -65,7 +65,7 @@ jobs:
         env:
           PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
         with:
-          github-token: ${{ secrets.GH_PR_TOKEN }}
+          github-token: ${{ secrets.gh_pr_token }}
           script: |
             #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
             #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`

@@ -9,6 +9,10 @@ on:
       tfvars_file:
         required: true
         type: string
+      apply_environment:
+        required: false
+        type: string
+        default: terraform-apply
     secrets:
       aws_sts_credentials_json:
         required: true
@@ -89,6 +93,15 @@ jobs:
         with:
           github-token: ${{ secrets.gh_pr_token }}
           script: |
+            const checksUrl = `${context.payload.pull_request.html_url}/checks`;
+            const applyEnvironment = '${{ inputs.apply_environment }}';
+            const applySection = '${{ steps.plan.outcome }}' === 'success'
+              ? `
+
+            #### Apply this plan
+            Approval is required before apply runs. Open the [Checks tab](${checksUrl}) and click **Review deployments**, then approve \`${applyEnvironment}\`.`
+              : '';
+
             const output = `#### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
             #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
             #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
@@ -99,7 +112,7 @@ jobs:
             ${process.env.PLAN}
             \`\`\`
 
-            </details>
+            </details>${applySection}
 
             *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Workflow: \`${{ github.workflow }}\`*`;
 
@@ -109,3 +122,9 @@ jobs:
               repo: context.repo.repo,
               body: output
             })
+
+      - name: Terraform apply
+        if: github.event_name == 'pull_request' && steps.plan.outcome == 'success'
+        environment: ${{ inputs.apply_environment }}
+        id: apply
+        run: terraform apply -no-color -auto-approve -var-file "./apply-tfvars/${{ inputs.tfvars_file }}"

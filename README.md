@@ -1,6 +1,6 @@
 # terraform-workflow
 
-A reusable GitHub Actions workflow that runs `terraform plan` with AWS STS credentials. Call it from any repository to standardize how Terraform planning is executed across your infrastructure projects.
+A reusable GitHub Actions workflow that runs `terraform plan` with AWS STS credentials and optionally applies changes after environment approval. Call it from any repository to standardize how Terraform planning and applying is executed across your infrastructure projects.
 
 ## Workflow
 
@@ -16,7 +16,22 @@ A reusable GitHub Actions workflow that runs `terraform plan` with AWS STS crede
 4. Installs the specified Terraform version
 5. Runs `terraform init -backend-config=./init-tfvars/<tfvars_file>`
 6. Runs `terraform validate`
-7. Runs `terraform plan -var-file "./apply-tfvars/<tfvars_file>"`
+7. Runs `terraform plan -no-color -var-file "./apply-tfvars/<tfvars_file>"`
+8. On pull requests, posts the plan output as a PR comment with a link to approve apply
+9. On pull requests when plan succeeds, waits for environment approval, then runs `terraform apply -no-color -auto-approve`
+
+Apply only runs on `pull_request` events when the plan step succeeds. Manual runs (`workflow_dispatch`) post the plan to the job summary only.
+
+### Apply approval flow
+
+After a successful plan on a pull request, the workflow posts a comment and pauses at the **Terraform apply** step until a required reviewer approves the configured GitHub Environment (default: `terraform-apply`). Reviewers approve from the PR **Checks** tab by clicking **Review deployments**.
+
+Callers must create the environment in their repository before apply can run:
+
+1. Go to **Settings → Environments → New environment**
+2. Name it `terraform-apply` (or pass a custom name via the `apply_environment` input)
+3. Enable **Required reviewers** and add users or teams allowed to approve applies
+4. Optionally restrict deployment branches to protected branches only
 
 ### Inputs
 
@@ -24,12 +39,14 @@ A reusable GitHub Actions workflow that runs `terraform plan` with AWS STS crede
 |------|----------|------|-------------|
 | `terraform_version` | Yes | string | Terraform version to install (e.g. `1.6.0`) |
 | `tfvars_file` | Yes | string | Filename of the tfvars file inside the `./apply-tfvars/` directory |
+| `apply_environment` | No | string | GitHub Environment name that gates `terraform apply` (default: `terraform-apply`) |
 
 ### Secrets
 
 | Name | Required | Description |
 |------|----------|-------------|
 | `aws_sts_credentials_json` | Yes | JSON output from `aws sts get-session-token` containing `Credentials.AccessKeyId`, `Credentials.SecretAccessKey`, and `Credentials.SessionToken` |
+| `gh_pr_token` | Yes | GitHub PAT with read and write access to pull requests, used to post plan comments |
 
 ## Usage
 
@@ -81,6 +98,7 @@ jobs:
     with:
       terraform_version: ${{ needs.read-terraform-config.outputs.terraform_version }}
       tfvars_file: ${{ needs.read-terraform-config.outputs.tfvars_file }}
+      apply_environment: terraform-apply  # optional; this is the default
     secrets:
       aws_sts_credentials_json: ${{ secrets.AWS_STS_CREDENTIALS_JSON }}
       gh_pr_token: ${{ secrets.GH_PR_TOKEN }}

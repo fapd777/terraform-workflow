@@ -57,11 +57,33 @@ jobs:
 
       - name: Terraform plan
         id: plan
-        run: terraform plan -var-file "./apply-tfvars/${{ inputs.tfvars_file }}"
+        run: terraform plan -no-color -var-file "./apply-tfvars/${{ inputs.tfvars_file }}"
         continue-on-error: true
 
-      - uses: actions/github-script@v9
-        # if: github.event_name == 'pull_request'
+      - name: Write plan summary
+        if: github.event_name != 'pull_request'
+        env:
+          PLAN: ${{ steps.plan.outputs.stdout }}
+          VALIDATE: ${{ steps.validate.outputs.stdout }}
+        run: |
+          {
+            echo "#### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`"
+            echo "#### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`"
+            echo "<details><summary>Validation Output</summary>"
+            echo "#### Terraform Plan 📖\`${{ steps.plan.outcome }}\`"
+            echo ""
+            echo "<details><summary>Show Plan</summary>"
+            echo ""
+            echo '```terraform'
+            echo "$PLAN"
+            echo '```'
+            echo ""
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment plan on pull request
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v9
         env:
           PLAN: ${{ steps.plan.outputs.stdout }}
           VALIDATE: ${{ steps.validate.outputs.stdout }}
@@ -91,7 +113,7 @@ jobs:
             *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Workflow: \`${{ github.workflow }}\`*`;
 
             await github.rest.issues.createComment({
-              issue_number: context.issue.number,
+              issue_number: context.payload.pull_request.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: output

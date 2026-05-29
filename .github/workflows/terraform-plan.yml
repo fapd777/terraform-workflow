@@ -69,7 +69,6 @@ jobs:
           {
             echo "#### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`"
             echo "#### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`"
-            echo "<details><summary>Validation Output</summary>"
             echo "#### Terraform Plan 📖\`${{ steps.plan.outcome }}\`"
             echo ""
             echo "<details><summary>Show Plan</summary>"
@@ -92,14 +91,6 @@ jobs:
           script: |
             const output = `#### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
             #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
-            <details><summary>Validation Output</summary>
-
-            \`\`\`
-            ${process.env.VALIDATE}
-            \`\`\`
-
-            </details>
-
             #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
 
             <details><summary>Show Plan</summary>

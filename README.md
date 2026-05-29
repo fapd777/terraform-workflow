@@ -40,7 +40,7 @@ name: "Run Terraform plan"
 
 on:
   workflow_dispatch:
-  # pull_request:
+  pull_request:
 
 jobs:
   read-terraform-config:
@@ -51,7 +51,7 @@ jobs:
       tfvars_file: ${{ steps.tfvars_file.outputs.tfvars_file }}
     steps:
       - name: Checkout caller repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Read .terraform-version
         id: tf_version
@@ -77,12 +77,13 @@ jobs:
 
   call-terraform-plan:
     needs: read-terraform-config
-    uses: fapd777/terraform-workflow/.github/workflows/terraform-plan.yml@main
+    uses: fapd777/terraform-workflow/.github/workflows/terraform-plan.yml@20260526-1030
     with:
       terraform_version: ${{ needs.read-terraform-config.outputs.terraform_version }}
       tfvars_file: ${{ needs.read-terraform-config.outputs.tfvars_file }}
     secrets:
       aws_sts_credentials_json: ${{ secrets.AWS_STS_CREDENTIALS_JSON }}
+      gh_pr_token: ${{ secrets.GH_PR_TOKEN }}
 ```
 
 The `aws_sts_credentials_json` secret should be the raw JSON output from a command like:
@@ -94,5 +95,7 @@ aws sts get-session-token --no-cli-pager --duration-seconds 3600
 In your calling repository:
 
 Store that output as a repository or organization secret named `AWS_STS_CREDENTIALS_JSON` 
+
+The `gh_pr_token` secret should be a GitHub Actions Personal Access Token (PAT) with read and write permissions to pull requests.
 
 It must have a `./apply-tfvars/` directory containing the tfvars file referenced by the `tfvars_file` input.

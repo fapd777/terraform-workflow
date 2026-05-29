@@ -86,7 +86,7 @@ jobs:
       gh_pr_token: ${{ secrets.GH_PR_TOKEN }}
 ```
 
-The `aws_sts_credentials_json` secret should be the raw JSON output from a command like:
+The `AWS_STS_CREDENTIALS_JSON` secret should be the raw JSON output from a command like:
 
 ```bash
 aws sts get-session-token --no-cli-pager --duration-seconds 3600
@@ -96,6 +96,10 @@ In your calling repository:
 
 Store that output as a repository or organization secret named `AWS_STS_CREDENTIALS_JSON` 
 
-The `gh_pr_token` secret should be a GitHub Actions Personal Access Token (PAT) with read and write permissions to pull requests.
+The `GH_PR_TOKEN` secret should be a GitHub Actions Personal Access Token (PAT) with read and write permissions to pull requests.
+
+In your calling repository:
+
+Store the GHA PAT as a repository or organization secret named `GH_PR_TOKEN` 
 
 It must have a `./apply-tfvars/` directory containing the tfvars file referenced by the `tfvars_file` input.

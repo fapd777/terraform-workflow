@@ -30,11 +30,11 @@ jobs:
       - name: Checkout the repository to the runner
         uses: actions/checkout@v6
 
-      - name: Mask extracted credentials
-        run: |
-          echo "::add-mask::${{ fromJSON(secrets.aws_sts_credentials_json).Credentials.AccessKeyId }}"
-          echo "::add-mask::${{ fromJSON(secrets.aws_sts_credentials_json).Credentials.SecretAccessKey }}"
-          echo "::add-mask::${{ fromJSON(secrets.aws_sts_credentials_json).Credentials.SessionToken }}"
+      # - name: Mask extracted credentials
+      #   run: |
+      #     echo "::add-mask::${{ fromJSON(secrets.aws_sts_credentials_json).Credentials.AccessKeyId }}"
+      #     echo "::add-mask::${{ fromJSON(secrets.aws_sts_credentials_json).Credentials.SecretAccessKey }}"
+      #     echo "::add-mask::${{ fromJSON(secrets.aws_sts_credentials_json).Credentials.SessionToken }}"
 
       - name: Set AWS credentials as environment variables
         run: |

@@ -253,9 +253,6 @@ jobs:
         with:
           github-token: ${{ secrets.gh_pr_token }}
           script: |
-              const applySection = '${{ steps.apply.outcome }}' === 'success'
-              ? `
-
             const output = `#### Terraform Apply ✅\`${{ steps.apply.outcome }}\`
 
             <details><summary>Show Apply</summary>

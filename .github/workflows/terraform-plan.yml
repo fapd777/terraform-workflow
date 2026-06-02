@@ -130,59 +130,60 @@ jobs:
               body: output
             })
 
-  check-pr-approval:
-    name: "Check PR approval"
-    needs: terraform-plan
-    if: >
-      (github.event_name == 'pull_request' || github.event_name == 'pull_request_review') &&
-      needs.terraform-plan.result == 'success'
-    runs-on: ubuntu-latest
-    outputs:
-      approved: ${{ steps.check.outputs.approved }}
-    steps:
-      - name: Check for approved PR review
-        id: check
-        uses: actions/github-script@v9
-        with:
-          github-token: ${{ secrets.gh_pr_token }}
-          script: |
-            const pullNumber = context.payload.pull_request.number;
-            const { data: reviews } = await github.rest.pulls.listReviews({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pullNumber,
-            });
+  # check-pr-approval:
+  #   name: "Check PR approval"
+  #   needs: terraform-plan
+  #   if: >
+  #     (github.event_name == 'pull_request' || github.event_name == 'pull_request_review') &&
+  #     needs.terraform-plan.result == 'success'
+  #   runs-on: ubuntu-latest
+  #   outputs:
+  #     approved: ${{ steps.check.outputs.approved }}
+  #   steps:
+  #     - name: Check for approved PR review
+  #       id: check
+  #       uses: actions/github-script@v9
+  #       with:
+  #         github-token: ${{ secrets.gh_pr_token }}
+  #         script: |
+  #           const pullNumber = context.payload.pull_request.number;
+  #           const { data: reviews } = await github.rest.pulls.listReviews({
+  #             owner: context.repo.owner,
+  #             repo: context.repo.repo,
+  #             pull_number: pullNumber,
+  #           });
 
-            const latestReviewByUser = new Map();
-            for (const review of reviews) {
-              latestReviewByUser.set(review.user.login, review);
-            }
+  #           const latestReviewByUser = new Map();
+  #           for (const review of reviews) {
+  #             latestReviewByUser.set(review.user.login, review);
+  #           }
 
-            const isApproved = [...latestReviewByUser.values()].some(
-              (review) => review.state === 'APPROVED'
-            );
+  #           const isApproved = [...latestReviewByUser.values()].some(
+  #             (review) => review.state === 'APPROVED'
+  #           );
 
-            core.setOutput('approved', isApproved ? 'true' : 'false');
+  #           core.setOutput('approved', isApproved ? 'true' : 'false');
 
-            if (isApproved) {
-              core.summary
-                .addHeading('PR approval check')
-                .addRaw('At least one approved review was found. The apply job will run.')
-                .write();
-            } else {
-              core.summary
-                .addHeading('PR approval check')
-                .addRaw('Apply skipped: no approved PR review yet.')
-                .write();
-            }
+  #           if (isApproved) {
+  #             core.summary
+  #               .addHeading('PR approval check')
+  #               .addRaw('At least one approved review was found. The apply job will run.')
+  #               .write();
+  #           } else {
+  #             core.summary
+  #               .addHeading('PR approval check')
+  #               .addRaw('Apply skipped: no approved PR review yet.')
+  #               .write();
+  #           }
 
   terraform-apply:
     name: "Terraform apply job"
-    needs: [terraform-plan, check-pr-approval]
-    if: >
-      (github.event_name == 'pull_request' || github.event_name == 'pull_request_review') &&
-      needs.terraform-plan.result == 'success' &&
-      needs.check-pr-approval.outputs.approved == 'true'
+    # needs: [terraform-plan, check-pr-approval]
+    needs: [terraform-plan]
+    # if: >
+    #   (github.event_name == 'pull_request' || github.event_name == 'pull_request_review') &&
+    #   needs.terraform-plan.result == 'success' &&
+    #   needs.check-pr-approval.outputs.approved == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:

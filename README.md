@@ -11,12 +11,11 @@ A reusable GitHub Actions workflow that runs `terraform plan` with AWS STS crede
 ### What it does
 
 1. Checks out the calling repository
-2. Masks AWS credentials to prevent them from appearing in logs
-3. Sets `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_SESSION_TOKEN` as environment variables
-4. Installs the specified Terraform version
-5. Runs `terraform init -backend-config=./init-tfvars/<tfvars_file>`
-6. Runs `terraform validate`
-7. Runs `terraform plan -var-file "./apply-tfvars/<tfvars_file>"`
+2. Masks AWS credentials and sets `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_SESSION_TOKEN` as environment variables (via `core.setSecret` so values never appear in logs)
+3. Installs the specified Terraform version
+4. Runs `terraform init -backend-config=./init-tfvars/<tfvars_file>`
+5. Runs `terraform validate`
+6. Runs `terraform plan -var-file "./apply-tfvars/<tfvars_file>"`
 
 ### Inputs
 

@@ -30,17 +30,22 @@ jobs:
       - name: Checkout the repository to the runner
         uses: actions/checkout@v6
 
-      - name: Mask extracted credentials
-        run: |
-          echo "::add-mask::${{ fromJSON(secrets.aws_sts_credentials_json).Credentials.AccessKeyId }}"
-          echo "::add-mask::${{ fromJSON(secrets.aws_sts_credentials_json).Credentials.SecretAccessKey }}"
-          echo "::add-mask::${{ fromJSON(secrets.aws_sts_credentials_json).Credentials.SessionToken }}"
+      - name: Configure AWS credentials
+        uses: actions/github-script@v9
+        env:
+          AWS_STS_CREDENTIALS_JSON: ${{ secrets.aws_sts_credentials_json }}
+        with:
+          script: |
+            const { AccessKeyId, SecretAccessKey, SessionToken } =
+              JSON.parse(process.env.AWS_STS_CREDENTIALS_JSON).Credentials;
 
-      - name: Set AWS credentials as environment variables
-        run: |
-          echo "AWS_ACCESS_KEY_ID=${{ fromJSON(secrets.aws_sts_credentials_json).Credentials.AccessKeyId }}" >> "$GITHUB_ENV"
-          echo "AWS_SECRET_ACCESS_KEY=${{ fromJSON(secrets.aws_sts_credentials_json).Credentials.SecretAccessKey }}" >> "$GITHUB_ENV"
-          echo "AWS_SESSION_TOKEN=${{ fromJSON(secrets.aws_sts_credentials_json).Credentials.SessionToken }}" >> "$GITHUB_ENV"
+            core.setSecret(AccessKeyId);
+            core.setSecret(SecretAccessKey);
+            core.setSecret(SessionToken);
+
+            core.exportVariable("AWS_ACCESS_KEY_ID", AccessKeyId);
+            core.exportVariable("AWS_SECRET_ACCESS_KEY", SecretAccessKey);
+            core.exportVariable("AWS_SESSION_TOKEN", SessionToken);
 
       - name: Setup Terraform with specified version on the runner
         uses: hashicorp/setup-terraform@v4

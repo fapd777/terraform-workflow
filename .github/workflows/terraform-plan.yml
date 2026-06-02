@@ -225,4 +225,52 @@ jobs:
           path: .
 
       - name: Terraform apply
+        id: apply
         run: terraform apply -no-color tfplan
+
+      - name: Write apply summary
+        if: github.event_name != 'pull_request'
+        env:
+          APPLY: ${{ steps.apply.outputs.stdout }}
+        run: |
+          {
+            echo "#### Terraform Apply ✅\`${{ steps.apply.outcome }}\`"
+            echo ""
+            echo "<details><summary>Show Apply</summary>"
+            echo ""
+            echo '```terraform'
+            echo "$APPLY"
+            echo '```'
+            echo ""
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment apply on pull request
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v9
+        env:
+          APPLY: ${{ steps.apply.outputs.stdout }}
+        with:
+          github-token: ${{ secrets.gh_pr_token }}
+          script: |
+              const applySection = '${{ steps.apply.outcome }}' === 'success'
+              ? `
+
+            const output = `#### Terraform Apply ✅\`${{ steps.apply.outcome }}\`
+
+            <details><summary>Show Apply</summary>
+
+            \`\`\`terraform
+            ${process.env.APPLY}
+            \`\`\`
+
+            </details>
+
+            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Workflow: \`${{ github.workflow }}\`*`;
+
+            await github.rest.issues.createComment({
+              issue_number: context.payload.pull_request.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })

@@ -67,7 +67,7 @@ jobs:
 
       - name: Upload Terraform plan
         if: steps.plan.outcome == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tfplan
           path: tfplan
@@ -219,7 +219,7 @@ jobs:
         run: terraform init -backend-config="./init-tfvars/${{ inputs.tfvars_file }}"
 
       - name: Download Terraform plan
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: tfplan
           path: .

@@ -1,6 +1,6 @@
 # terraform-workflow
 
-A reusable GitHub Actions workflow that runs `terraform plan` with AWS STS credentials. Call it from any repository to standardize how Terraform planning is executed across your infrastructure projects.
+A reusable GitHub Actions workflow that runs `terraform plan` with AWS STS credentials and applies changes from the saved plan after at least one repository reviewer approves the pull request. Call it from any repository to standardize how Terraform planning and applying is executed across your infrastructure projects.
 
 ## Workflow
 
@@ -10,12 +10,13 @@ A reusable GitHub Actions workflow that runs `terraform plan` with AWS STS crede
 
 ### What it does
 
-1. Checks out the calling repository
-2. Masks AWS credentials and sets `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_SESSION_TOKEN` as environment variables (via `core.setSecret` so values never appear in logs)
-3. Installs the specified Terraform version
-4. Runs `terraform init -backend-config=./init-tfvars/<tfvars_file>`
-5. Runs `terraform validate`
-6. Runs `terraform plan -var-file "./apply-tfvars/<tfvars_file>"`
+The workflow runs three jobs on pull requests:
+
+1. **Terraform plan job** — checks out the calling repository, configures AWS credentials, installs Terraform, runs `init`, `validate`, and `plan`, uploads the saved plan as an artifact, and posts the plan to the pull request (when triggered by a `pull_request` event).
+2. **Check PR approval** — verifies that at least one repository reviewer has submitted an `APPROVED` review on the pull request.
+3. **Terraform apply job** — downloads the plan artifact from the plan job and runs `terraform apply tfplan`. This job runs only when the plan succeeded and the PR has at least one approved review.
+
+For non-PR triggers (such as `workflow_dispatch`), only the plan job runs.
 
 ### Inputs
 
@@ -29,6 +30,7 @@ A reusable GitHub Actions workflow that runs `terraform plan` with AWS STS crede
 | Name | Required | Description |
 |------|----------|-------------|
 | `aws_sts_credentials_json` | Yes | JSON output from `aws sts get-session-token` containing `Credentials.AccessKeyId`, `Credentials.SecretAccessKey`, and `Credentials.SessionToken` |
+| `gh_pr_token` | Yes | GitHub PAT with read and write access to pull requests, used to post plan comments and check review status |
 
 ## Usage
 
@@ -40,6 +42,8 @@ name: "Run Terraform plan"
 on:
   workflow_dispatch:
   pull_request:
+  pull_request_review:
+    types: [submitted]
 
 jobs:
   read-terraform-config:
@@ -76,6 +80,7 @@ jobs:
 
   call-terraform-plan:
     needs: read-terraform-config
+    if: github.event_name != 'pull_request_review' || github.event.review.state == 'approved'
     uses: fapd777/terraform-workflow/.github/workflows/terraform-plan.yml@20260526-1030
     with:
       terraform_version: ${{ needs.read-terraform-config.outputs.terraform_version }}
@@ -84,6 +89,8 @@ jobs:
       aws_sts_credentials_json: ${{ secrets.AWS_STS_CREDENTIALS_JSON }}
       gh_pr_token: ${{ secrets.GH_PR_TOKEN }}
 ```
+
+The `pull_request_review` trigger allows apply to run when a reviewer approves the PR without requiring a new push. The `if` condition on `call-terraform-plan` avoids re-running the workflow on non-approval review submissions.
 
 The `AWS_STS_CREDENTIALS_JSON` secret should be the raw JSON output from a command like:
 

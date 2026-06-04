@@ -19,7 +19,7 @@ env:
   TF_LOG: INFO
 
 jobs:
-  terraform:
+  terraform-plan:
     name: "Terraform plan job"
     runs-on: ubuntu-latest
     defaults:
@@ -62,8 +62,16 @@ jobs:
 
       - name: Terraform plan
         id: plan
-        run: terraform plan -no-color -var-file "./apply-tfvars/${{ inputs.tfvars_file }}"
+        run: terraform plan -no-color -out=tfplan -var-file "./apply-tfvars/${{ inputs.tfvars_file }}"
         continue-on-error: true
+
+      - name: Upload Terraform plan
+        if: steps.plan.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: tfplan
+          path: tfplan
+          retention-days: 5
 
       - name: Write plan summary
         if: github.event_name != 'pull_request'
@@ -94,6 +102,13 @@ jobs:
         with:
           github-token: ${{ secrets.gh_pr_token }}
           script: |
+            const applySection = '${{ steps.plan.outcome }}' === 'success'
+              ? `
+
+            #### Apply this plan
+            At least one repository reviewer must approve this pull request before \`terraform apply\` runs.`
+              : '';
+
             const output = `#### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
             #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
             #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
@@ -102,6 +117,147 @@ jobs:
 
             \`\`\`terraform
             ${process.env.PLAN}
+            \`\`\`
+
+            </details>${applySection}
+
+            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Workflow: \`${{ github.workflow }}\`*`;
+
+            await github.rest.issues.createComment({
+              issue_number: context.payload.pull_request.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+  check-pr-approval:
+    name: "Check PR approval"
+    needs: terraform-plan
+    if: >
+      (github.event_name == 'pull_request' || github.event_name == 'pull_request_review') &&
+      needs.terraform-plan.result == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      approved: ${{ steps.check.outputs.approved }}
+    steps:
+      - name: Check for approved PR review
+        id: check
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.gh_pr_token }}
+          script: |
+            const pullNumber = context.payload.pull_request.number;
+            const { data: reviews } = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pullNumber,
+            });
+
+            const latestReviewByUser = new Map();
+            for (const review of reviews) {
+              latestReviewByUser.set(review.user.login, review);
+            }
+
+            const isApproved = [...latestReviewByUser.values()].some(
+              (review) => review.state === 'APPROVED'
+            );
+
+            core.setOutput('approved', isApproved ? 'true' : 'false');
+
+            if (isApproved) {
+              core.summary
+                .addHeading('PR approval check')
+                .addRaw('At least one approved review was found. The apply job will run.')
+                .write();
+            } else {
+              core.summary
+                .addHeading('PR approval check')
+                .addRaw('Apply skipped: no approved PR review yet.')
+                .write();
+            }
+
+  terraform-apply:
+    name: "Terraform apply job"
+    needs: [terraform-plan, check-pr-approval]
+    if: >
+      (github.event_name == 'pull_request' || github.event_name == 'pull_request_review') &&
+      needs.terraform-plan.result == 'success' &&
+      needs.check-pr-approval.outputs.approved == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout the repository to the runner
+        uses: actions/checkout@v6
+
+      - name: Configure AWS credentials
+        uses: actions/github-script@v9
+        env:
+          AWS_STS_CREDENTIALS_JSON: ${{ secrets.aws_sts_credentials_json }}
+        with:
+          script: |
+            const { AccessKeyId, SecretAccessKey, SessionToken } =
+              JSON.parse(process.env.AWS_STS_CREDENTIALS_JSON).Credentials;
+
+            core.setSecret(AccessKeyId);
+            core.setSecret(SecretAccessKey);
+            core.setSecret(SessionToken);
+
+            core.exportVariable("AWS_ACCESS_KEY_ID", AccessKeyId);
+            core.exportVariable("AWS_SECRET_ACCESS_KEY", SecretAccessKey);
+            core.exportVariable("AWS_SESSION_TOKEN", SessionToken);
+
+      - name: Setup Terraform with specified version on the runner
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ inputs.terraform_version }}
+
+      - name: Terraform init
+        run: terraform init -backend-config="./init-tfvars/${{ inputs.tfvars_file }}"
+
+      - name: Download Terraform plan
+        uses: actions/download-artifact@v7
+        with:
+          name: tfplan
+          path: .
+
+      - name: Terraform apply
+        id: apply
+        run: terraform apply -no-color tfplan
+
+      - name: Write apply summary
+        if: github.event_name != 'pull_request'
+        env:
+          APPLY: ${{ steps.apply.outputs.stdout }}
+        run: |
+          {
+            echo "#### Terraform Apply ✅\`${{ steps.apply.outcome }}\`"
+            echo ""
+            echo "<details><summary>Show Apply</summary>"
+            echo ""
+            echo '```terraform'
+            echo "$APPLY"
+            echo '```'
+            echo ""
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment apply on pull request
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v9
+        env:
+          APPLY: ${{ steps.apply.outputs.stdout }}
+        with:
+          github-token: ${{ secrets.gh_pr_token }}
+          script: |
+            const output = `#### Terraform Apply ✅\`${{ steps.apply.outcome }}\`
+
+            <details><summary>Show Apply</summary>
+
+            \`\`\`terraform
+            ${process.env.APPLY}
             \`\`\`
 
             </details>
